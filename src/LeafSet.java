@@ -8,11 +8,11 @@ import org.jgroups.Address;
  * @author Cayetano
  *
  */
-public interface LeafSets {
+public interface LeafSet {
 
 	public void addLeaf (Leaf leaf);
 	public void removeLeaf (int key);
-	public Leaf closestLeaf (int key);
+	public Boolean isInRange (int key);
 	public Address getAddressByKey (int key);
 	
 }
