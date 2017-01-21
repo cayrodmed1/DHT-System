@@ -17,6 +17,11 @@ public class Leaf {
 		key = address.hashCode() % Common.MAX_ADDR;
 	}
 	
+	public Leaf(int key){
+		this.address = null;
+		this.key = key;
+	}
+	
 	
 	/**
 	 * @return the address
