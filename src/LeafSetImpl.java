@@ -32,6 +32,7 @@ public class LeafSetImpl implements LeafSet {
 		System.out.println("Position: " + leafSetImpl.calculatePosition(1000, leafSetImpl.calculateSide(1000)));
 		leafSetImpl.addLeaf(new Leaf(1000));
 		System.out.println(leafSetImpl);
+		System.out.println("Closest leaf (46):" +leafSetImpl.closestLeaf(46));
 	}
 
 	/**
@@ -196,7 +197,7 @@ public class LeafSetImpl implements LeafSet {
 			result = true;
 		else {
 			// Normalize LeafSet to the central node
-			int [] normKeys = this.normalize();
+			int [] normKeys = this.normalize(nodeLeaf.getKey());
 			
 			// To testing
 			System.out.println("[" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
@@ -233,13 +234,51 @@ public class LeafSetImpl implements LeafSet {
 		return result;
 	}
 	
-	// Normalize LeafSet to the central node
-	private int [] normalize () {
+	@Override
+	public Leaf closestLeaf (int key){
+		int dist = 0;
+		Leaf closest = nodeLeaf;
+		
+		int norm = nodeLeaf.getKey() - key;
+		if (norm < 0)
+			norm += Common.MAX_ADDR;
+		
+		// Calculate the lower distance between the central node and the given node
+		// Right distance
+		dist = norm;
+		// Calculate left distance and change if it is less
+		if (Common.MAX_ADDR - norm < dist)
+			dist = Common.MAX_ADDR - norm;
+		
+		// Normalize LeafSet to the given node
+		int[] normKeys = this.normalize(key);
+		
+		// Calculate the lower distance between the LeafSet leafs and the given node.
+		// If we get a distance that is lower than the stored distance, we change it,
+		// and we will return the leaf that has the lower distance (right or left)
+		for (int i=0; i<leafSet.length; i++) {
+			if (leafSet[i] != null) {
+				if (normKeys[i] < dist) {
+					dist = normKeys[i];
+					closest = leafSet[i];
+				}
+				if (Common.MAX_ADDR - normKeys[i] < dist){
+					dist = Common.MAX_ADDR - normKeys[i];
+					closest = leafSet[i];
+				}		
+			}
+		}
+		
+		return closest;
+	}
+	
+	// Normalize LeafSet to the given node
+	private int [] normalize (int key) {
 		int[] normKeys = new int[2*Common.L];
 		
 		for (int i=0; i<leafSet.length; i++)
 			if (leafSet[i] != null) {
-				normKeys[i] = leafSet[i].getKey() - nodeLeaf.getKey();
+				normKeys[i] = leafSet[i].getKey() - key;
 				if (normKeys[i] < 0) 
 					normKeys[i] += Common.MAX_ADDR;
 			}
@@ -255,7 +294,7 @@ public class LeafSetImpl implements LeafSet {
 		int result = -1;
 		
 		// Normalize LeafSet to the central node
-		int [] normKeys = this.normalize();
+		int [] normKeys = this.normalize(nodeLeaf.getKey());
 					
 		// To testing
 		System.out.println("[" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
@@ -287,7 +326,7 @@ public class LeafSetImpl implements LeafSet {
 		int normNewNode = key - nodeLeaf.getKey();
 		
 		// Normalize LeafSet to the central node
-		int [] normKeys = this.normalize();
+		int [] normKeys = this.normalize(nodeLeaf.getKey());
 		// if < 0 -> add MAX_ADDR
 		if (normNewNode < 0)
 			normNewNode += Common.MAX_ADDR;
