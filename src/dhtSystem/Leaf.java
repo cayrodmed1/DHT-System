@@ -1,10 +1,15 @@
+package dhtSystem;
+import java.io.Serializable;
+
 import org.jgroups.Address;
 
 /**
  * @author Alejandro Rodríguez Calzado
  *
  */
-public class Leaf {
+public class Leaf implements Serializable{
+
+	private static final long serialVersionUID = 1L;
 	private Address address;
 	private int key;
 	

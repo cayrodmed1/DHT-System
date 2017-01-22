@@ -1,3 +1,4 @@
+package dhtSystem;
 import org.jgroups.Address;
 
 /**
@@ -5,7 +6,7 @@ import org.jgroups.Address;
  */
 
 /**
- * @author Cayetano
+ * @author Cayetano Rodriguez Medina
  *
  */
 public interface LeafSet {

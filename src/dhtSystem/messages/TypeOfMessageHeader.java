@@ -1,9 +1,12 @@
+package dhtSystem.messages;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.util.function.Supplier;
 
 import org.jgroups.Global;
 import org.jgroups.Header;
+
+import dhtSystem.Common;
 
 /**
  * 

@@ -1,9 +1,13 @@
+package dhtSystem;
 import org.jgroups.Address;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
 import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
 import org.jgroups.conf.ClassConfigurator;
+
+import dhtSystem.messages.JoinMessage;
+import dhtSystem.messages.TypeOfMessageHeader;
 
 
 /**
@@ -23,21 +27,22 @@ public class Node extends ReceiverAdapter{
 	public static void main(String[] args) throws Exception{
 		Node node = new Node();
 		System.out.println(node.getLeafSet());
-		
-		// To testing 
-		if (node.getView().size() > 1){
-			Address first=node.getView().getMembers().get(0);
-			Message msg=new Message(first, "Hello world");
-			msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(5));
-			node.getChannel().send(msg);
-		}
 	}
 
 	/**
 	 * 
 	 */
 	public Node() {
-        String props="tcp.xml";
+		/*
+		 * tcp.xml lists only localhost[7800] and localhost[7801] 
+		 * for initial discovery in TCPPING. If you have to use TCP, then you must 
+		 * list *all* members of your cluster in TCPPING ! 
+		 * Use MPING for dynamic discovery if you can't know all of your members 
+		 * beforehand.
+		 * 
+		 * MPING: TCP-based stack with IP multicast-based discovery
+		 */ 
+        String props="mping.xml"; 
         String name=null;
         
         try {
@@ -54,6 +59,9 @@ public class Node extends ReceiverAdapter{
         leafSet = new LeafSetImpl(leaf);
         
         ClassConfigurator.add(Common.TYPE_HEADER_MAGIC_ID, TypeOfMessageHeader.class);
+        
+        if (getView().size() > 1)
+        	join(getView().getMembers().get(0));
 	}
 
 	/**
@@ -127,7 +135,32 @@ public class Node extends ReceiverAdapter{
 	}
 
 	public void receive(Message msg) {
-		String line= msg.getHeader(Common.TYPE_HEADER_MAGIC_ID) + "[" + msg.getSrc() + "]: " + msg.getObject();
-		System.out.println(line);
+		// To testing
+		//String line= msg.getHeader(Common.TYPE_HEADER_MAGIC_ID) + "[" + msg.getSrc() + "]: " + msg.getObject();
+		//System.out.println(line);
+		int type = ((TypeOfMessageHeader) msg.getHeader(Common.TYPE_HEADER_MAGIC_ID)).getType();
+		switch (type){
+		case Common.JOIN:
+			joinReceived((JoinMessage) msg.getObject());
+			break;
+		}
+	}
+	
+	private void join(Address address){
+		Message msg=new Message(address, new JoinMessage(leaf));
+		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.JOIN));
+		try{
+			channel.send(msg);
+		} catch (Exception e) {
+			System.err.println("Error during join.");
+		}
+	}
+	
+	private void joinReceived(JoinMessage join){
+		Leaf leaf = join.getLeaf();
+		if (leafSet.isInRange(leaf.getKey())) {
+			leafSet.addLeaf(leaf);
+			System.out.println("LeafSet changed: \n" + leafSet);
+		}
 	}
 }

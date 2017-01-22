@@ -1,3 +1,5 @@
+package dhtSystem;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -11,8 +13,9 @@ import org.jgroups.Address;
  * @author Alejandro Rodriguez Calzado
  *
  */
-public class LeafSetImpl implements LeafSet {
+public class LeafSetImpl implements LeafSet, Serializable {
 	
+	private static final long serialVersionUID = 1L;
 	private static final int RIGHT = 1;
 	private static final int LEFT = 0;
 	private Leaf nodeLeaf;
