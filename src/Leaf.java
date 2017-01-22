@@ -14,7 +14,7 @@ public class Leaf {
 	 */
 	public Leaf(Address address) {
 		this.address = address;
-		key = address.hashCode() % Common.MAX_ADDR;
+		key = Math.abs(address.hashCode() % Common.MAX_ADDR);
 	}
 	
 	public Leaf(int key){
@@ -51,9 +51,6 @@ public class Leaf {
 		this.key = key;
 	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		return String.format("Leaf [address=%s, key=%s]", address, key);

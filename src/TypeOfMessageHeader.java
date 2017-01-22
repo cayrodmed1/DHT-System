@@ -65,14 +65,12 @@ public class TypeOfMessageHeader extends Header {
 
 	@Override
 	public Supplier<? extends Header> create() {
-		// TODO Auto-generated method stub
-		return null;
+		return TypeOfMessageHeader::new;
 	}
 
 	@Override
 	public short getMagicId() {
-		// TODO Auto-generated method stub
-		return 0;
+		return Common.TYPE_HEADER_MAGIC_ID;
 	}
 
 }
