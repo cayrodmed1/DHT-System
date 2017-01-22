@@ -50,6 +50,14 @@ public class Leaf {
 	public void setKey(int key) {
 		this.key = key;
 	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		return String.format("Leaf [address=%s, key=%s]", address, key);
+	}
 	
 	
 }

@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 
 import org.jgroups.Address;
 
@@ -7,7 +8,7 @@ import org.jgroups.Address;
  */
 
 /**
- * @author alejandro
+ * @author Alejandro Rodriguez Calzado
  *
  */
 public class LeafSetImpl implements LeafSet {
@@ -23,11 +24,14 @@ public class LeafSetImpl implements LeafSet {
 	public static void main (String[] args){
 		
 		Leaf node = new Leaf(56);
-		Leaf [] leafSet = {new Leaf(900), new Leaf(32), null, null};
-		LeafSetImpl leafSetImpl = new LeafSetImpl(node, leafSet, 0 , 2);
-		System.out.println("isInRange: " + leafSetImpl.isInRange(100));
-		System.out.println("Side: " + leafSetImpl.calculateSide(100));
-		System.out.println("Position: " + leafSetImpl.calculatePosition(100, leafSetImpl.calculateSide(100)));
+		Leaf [] leafSet = {new Leaf(900), new Leaf(32), new Leaf(60), null};
+		LeafSetImpl leafSetImpl = new LeafSetImpl(node, leafSet, 2 , 1);
+		System.out.println(leafSetImpl);
+		System.out.println("isInRange: " + leafSetImpl.isInRange(1000));
+		System.out.println("Side: " + leafSetImpl.calculateSide(1000));
+		System.out.println("Position: " + leafSetImpl.calculatePosition(1000, leafSetImpl.calculateSide(1000)));
+		leafSetImpl.addLeaf(new Leaf(1000));
+		System.out.println(leafSetImpl);
 	}
 
 	/**
@@ -58,7 +62,7 @@ public class LeafSetImpl implements LeafSet {
 	 * @param nodeLeaf
 	 * @param leafSet
 	 */
-	public LeafSetImpl(Leaf nodeLeaf, Leaf [] leafSet, int right, int left) {
+	public LeafSetImpl(Leaf nodeLeaf, Leaf [] leafSet, int left, int right) {
 		this.nodeLeaf = nodeLeaf;
 		for (int i = 0; i < leafSet.length; i++ ) {
 			this.leafSet[i] = leafSet[i];
@@ -149,12 +153,31 @@ public class LeafSetImpl implements LeafSet {
 		// If new node should be placed in one side (min distance) but
 		// it is out of range in this side (distance > Max distance (side))
 		// and there is free space in the other side, place it there
-		if (position == -1 && right < Common.L)
+		if (position == -1 && right < Common.L) {
 			position = Common.L + right;
-		else if (position == 2*Common.L && left < Common.L)
+			leaveNode = null;
+		} else if (position == 2*Common.L && left < Common.L) {
 			position = Common.L - 1 - left;
-		//TODO
-				
+			leaveNode = null;
+		}
+		
+		this.insertIntoLeafSet(leaf, position);
+		
+		if (leaveNode != null) {
+			// If a node leaves the leafSet and there is 
+			// free space in the other side, then we place
+			// this node there.
+			switch (side){
+			case RIGHT:
+				if (left < Common.L)
+					this.insertIntoLeafSet(leaveNode, Common.L - left - 1);
+				break;
+			case LEFT:
+				if (right < Common.L)
+					this.insertIntoLeafSet(leaveNode, Common.L + right);
+				break;
+			}
+		}
 
 	}
 
@@ -299,6 +322,58 @@ public class LeafSetImpl implements LeafSet {
 		}
 
 		return result;
+	}
+	
+	private void insertIntoLeafSet (Leaf leaf, int position) {
+		Leaf auxLeaf1 = leaf;
+		Leaf auxLeaf2 = null;
+		
+		if (position >= Common.L) {
+			// RIGHT
+			int i = 0;
+			for (i = position; i < 2*Common.L && i <= (Common.L + right); i++) {
+				auxLeaf2 = leafSet[i];
+				leafSet[i] = auxLeaf1;
+				auxLeaf1 = auxLeaf2;
+			}
+			
+			// Update right var
+			right = i - Common.L;
+		} else {
+			// LEFT
+			int i = 0;
+			for (i = position; i >= 0 && i >= (Common.L - left - 1); i--) {
+				auxLeaf2 = leafSet[i];
+				leafSet[i] = auxLeaf1;
+				auxLeaf1 = auxLeaf2;
+			}
+			
+			// Update left var
+			left = Common.L - (i + 1);
+			
+		}
+	}
+
+	/* (non-Javadoc)
+	 * @see java.lang.Object#toString()
+	 */
+	@Override
+	public String toString() {
+		String result = "------------------LeafSet---------------------\n-nodeLeaf=" + nodeLeaf + "\n-leafSet= [";
+		
+		for (int i = 0; i < leafSet.length; i++)
+			if (leafSet[i] != null)
+				if (i == leafSet.length - 1)
+					result += leafSet[i].getKey() + "]";
+				else
+					result += leafSet[i].getKey() + ", ";
+			else
+				if (i == leafSet.length - 1)
+					result += "null]";
+				else
+					result += "null, ";
+		result += "\n-right= " + right + "\n-left= " + left + "\n----------------------------------------------";
+		return  result;
 	}
 
 }
