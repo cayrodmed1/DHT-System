@@ -1,4 +1,5 @@
 package dhtSystem;
+
 import org.jgroups.Address;
 import org.jgroups.JChannel;
 import org.jgroups.Message;
@@ -11,9 +12,11 @@ import dhtSystem.messages.TypeOfMessageHeader;
 import dhtSystem.messages.LeafSetMessage;
 import dhtSystem.messages.NewNodeMessage;
 
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Logger;
 
 /**
- * @author alejandro
+ * @author Alejandro Rodriguez Calzado
  *
  */
 public class Node extends ReceiverAdapter{
@@ -22,19 +25,25 @@ public class Node extends ReceiverAdapter{
 	
 	private JChannel channel;
 	private View view;
+	
+	private static final Logger log = Common.log;
 
 	/**
 	 * @param args
 	 */
 	public static void main(String[] args) throws Exception{
+	
 		Node node = new Node();
-		System.out.println(node.getLeafSet());
+		//System.out.println(node.getLeafSet());
 	}
 
 	/**
 	 * 
 	 */
 	public Node() {
+		// For logging with log4j
+		BasicConfigurator.configure();
+		
 		/*
 		 * tcp.xml lists only localhost[7800] and localhost[7801] 
 		 * for initial discovery in TCPPING. If you have to use TCP, then you must 
@@ -51,7 +60,7 @@ public class Node extends ReceiverAdapter{
         	// Connect to the group
         	this.start(props, name);
         } catch (Exception e) {
-        	System.err.println("Error during connection.");
+        	log.error("Error during connection.");
         }
         
         // Create my own leaf
@@ -124,7 +133,7 @@ public class Node extends ReceiverAdapter{
 
 	public void viewAccepted (View new_view) {
 		view = new_view;
-		System.out.println("** view: " + new_view);
+		log.info("** view: " + new_view);
 	}
 	
 	private void start(String props, String name) throws Exception {
@@ -139,22 +148,22 @@ public class Node extends ReceiverAdapter{
 	public void receive(Message msg) {
 		// To testing
 		//String line= msg.getHeader(Common.TYPE_HEADER_MAGIC_ID) + "[" + msg.getSrc() + "]: " + msg.getObject();
-		//System.out.println(line);
+		//log.info(line);
 		int type = ((TypeOfMessageHeader) msg.getHeader(Common.TYPE_HEADER_MAGIC_ID)).getType();
 		switch (type){
 		case Common.JOIN:
-			System.out.println("JOIN RECEIVED");
+			log.info("JOIN RECEIVED");
 			joinReceived((JoinMessage) msg.getObject());
 			break;
 		case Common.NEW_NODE:
-			System.out.println("NEW NODE RECEIVED");
+			log.info("NEW NODE RECEIVED");
 			newNodeReceived((NewNodeMessage) msg.getObject());
-			System.out.println(leafSet);
+			log.info(leafSet);
 			break;
 		case Common.LEAF_SET:
-			System.out.println("LEAF SET RECEIVED");
+			log.info("LEAF SET RECEIVED");
 			leafSetReceived((LeafSetMessage) msg.getObject());
-			System.out.println(leafSet);
+			log.info(leafSet);
 			break;
 		}
 	}
@@ -165,7 +174,7 @@ public class Node extends ReceiverAdapter{
 		try{
 			channel.send(msg);
 		} catch (Exception e) {
-			System.err.println("Error during join.");
+			log.error("Error during join.");
 		}
 	}
 	
@@ -187,7 +196,7 @@ public class Node extends ReceiverAdapter{
 			// Add the new node to my own leafSet
 			leafSet.addLeaf(newLeaf);
 			
-			System.out.println(leafSet);
+			log.info(leafSet);
 			
 			//TODO update data
 		} else {
@@ -201,7 +210,7 @@ public class Node extends ReceiverAdapter{
 		try{
 			channel.send(msg);
 		} catch (Exception e) {
-			System.err.println("Error sending NewNodeMessage.");
+			log.error("Error sending NewNodeMessage.");
 		}
 	}
 	
@@ -218,7 +227,7 @@ public class Node extends ReceiverAdapter{
 		try{
 			channel.send(msg);
 		} catch (Exception e) {
-			System.err.println("Error sending LeafSetMessage.");
+			log.error("Error sending LeafSetMessage.");
 		}
 	}
 	
@@ -226,4 +235,5 @@ public class Node extends ReceiverAdapter{
 		leafSet = leafSetMsg.getLeafSet();
 		leafSet.setNodeLeaf(ownLeaf);
 	}
+	
 }

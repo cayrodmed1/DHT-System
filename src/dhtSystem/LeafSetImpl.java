@@ -3,6 +3,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Logger;
 import org.jgroups.Address;
 
 /**
@@ -22,6 +24,8 @@ public class LeafSetImpl implements LeafSet, Serializable {
 	private Leaf [] leafSet = new Leaf[2*Common.L];
 	private int right;
 	private int left;
+	
+	private static final Logger log = Common.log;
 	
 	// To test the class
 	public static void main (String[] args){
@@ -47,7 +51,7 @@ public class LeafSetImpl implements LeafSet, Serializable {
 	/**
 	 * 
 	 */
-	public LeafSetImpl() {
+	public LeafSetImpl() {		
 		nodeLeaf = null;
 		for (int i = 0; i < this.leafSet.length; i++ ) {
 			this.leafSet[i] = null;
@@ -59,7 +63,7 @@ public class LeafSetImpl implements LeafSet, Serializable {
 	/**
 	 * @param nodeLeaf
 	 */
-	public LeafSetImpl(Leaf nodeLeaf) {
+	public LeafSetImpl(Leaf nodeLeaf) {		
 		this.nodeLeaf = nodeLeaf;
 		for (int i = 0; i < this.leafSet.length; i++ ) {
 			this.leafSet[i] = null;
@@ -72,7 +76,7 @@ public class LeafSetImpl implements LeafSet, Serializable {
 	 * @param nodeLeaf
 	 * @param leafSet
 	 */
-	public LeafSetImpl(Leaf nodeLeaf, Leaf [] leafSet, int left, int right) {
+	public LeafSetImpl(Leaf nodeLeaf, Leaf [] leafSet, int left, int right) {		
 		this.nodeLeaf = nodeLeaf;
 		for (int i = 0; i < leafSet.length; i++ ) {
 			this.leafSet[i] = leafSet[i];
@@ -210,8 +214,7 @@ public class LeafSetImpl implements LeafSet, Serializable {
 			// Normalize LeafSet to the central node
 			int [] normKeys = this.normalize(nodeLeaf.getKey());
 			
-			// To testing
-			//System.out.println("[" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
+			log.debug("normKeys: [" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
 			
 			// Normalize new node key to the central node
 			int normNewNode = key - nodeLeaf.getKey();
@@ -307,8 +310,7 @@ public class LeafSetImpl implements LeafSet, Serializable {
 		// Normalize LeafSet to the central node
 		int [] normKeys = this.normalize(nodeLeaf.getKey());
 					
-		// To testing
-		//System.out.println("[" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
+		log.debug("[" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
 					
 		// Normalize new node key to the central node
 		int normNewNode = key - nodeLeaf.getKey();
@@ -416,7 +418,7 @@ public class LeafSetImpl implements LeafSet, Serializable {
 
 	@Override
 	public String toString() {
-		String result = "------------------LeafSet---------------------\n-nodeLeaf=" + nodeLeaf + "\n-leafSet= [";
+		String result = "\n------------------LeafSet---------------------\n-nodeLeaf=" + nodeLeaf + "\n-leafSet= [";
 		
 		for (int i = 0; i < leafSet.length; i++)
 			if (leafSet[i] != null)
