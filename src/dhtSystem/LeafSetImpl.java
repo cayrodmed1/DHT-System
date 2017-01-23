@@ -26,16 +26,22 @@ public class LeafSetImpl implements LeafSet, Serializable {
 	// To test the class
 	public static void main (String[] args){
 		
-		Leaf node = new Leaf(56);
-		Leaf [] leafSet = {new Leaf(900), new Leaf(32), new Leaf(60), null};
-		LeafSetImpl leafSetImpl = new LeafSetImpl(node, leafSet, 2 , 1);
+		Leaf node = new Leaf(387);
+		Leaf [] leafSet = {null,new Leaf(804), new Leaf(527), new Leaf(546)};
+		LeafSetImpl leafSetImpl = new LeafSetImpl(node, leafSet, 1 , 2);
 		System.out.println(leafSetImpl);
-		System.out.println("isInRange: " + leafSetImpl.isInRange(1000));
-		System.out.println("Side: " + leafSetImpl.calculateSide(1000));
-		System.out.println("Position: " + leafSetImpl.calculatePosition(1000, leafSetImpl.calculateSide(1000)));
-		leafSetImpl.addLeaf(new Leaf(1000));
+		//System.out.println("isInRange: " + leafSetImpl.isInRange(646));
+		//System.out.println("Side: " + leafSetImpl.calculateSide(646));
+		//System.out.println("Position: " + leafSetImpl.calculatePosition(646, leafSetImpl.calculateSide(646)));
+		/*leafSetImpl.addLeaf(new Leaf(527));
 		System.out.println(leafSetImpl);
-		System.out.println("Closest leaf (46):" +leafSetImpl.closestLeaf(46));
+		leafSetImpl.addLeaf(new Leaf(546));
+		System.out.println(leafSetImpl);
+		leafSetImpl.addLeaf(new Leaf(804));*/
+		System.out.println(leafSetImpl);
+		leafSetImpl.addLeaf(new Leaf(646));
+		System.out.println(leafSetImpl);
+		//System.out.println("Closest leaf (646):" +leafSetImpl.closestLeaf(646));
 	}
 
 	/**
@@ -138,10 +144,12 @@ public class LeafSetImpl implements LeafSet, Serializable {
 	// that the node is in range.
 	@Override
 	public void addLeaf(Leaf leaf) {
-		int side = this.calculateSide(leaf.getKey());
-		Leaf leaveNode = null;  // Variable to save the node that will leave 
-		
-		switch (side){
+		if (!isInLeafSet (leaf.getKey()) && this.nodeLeaf.getKey() != leaf.getKey()){
+			
+			int side = this.calculateSide(leaf.getKey());
+			Leaf leaveNode = null;  // Variable to save the node that will leave 
+
+			switch (side){
 			case RIGHT:
 				if (right >= Common.L)
 					leaveNode = leafSet[2*Common.L -1];
@@ -150,39 +158,39 @@ public class LeafSetImpl implements LeafSet, Serializable {
 				if (left >= Common.L)
 					leaveNode = leafSet[0];
 				break;
-		}
-		
-		int position = this.calculatePosition(leaf.getKey(), side);
-		
-		// If new node should be placed in one side (min distance) but
-		// it is out of range in this side (distance > Max distance (side))
-		// and there is free space in the other side, place it there
-		if (position == -1 && right < Common.L) {
-			position = Common.L + right;
-			leaveNode = null;
-		} else if (position == 2*Common.L && left < Common.L) {
-			position = Common.L - 1 - left;
-			leaveNode = null;
-		}
-		
-		this.insertIntoLeafSet(leaf, position);
-		
-		if (leaveNode != null) {
-			// If a node leaves the leafSet and there is 
-			// free space in the other side, then we place
-			// this node there.
-			switch (side){
-			case RIGHT:
-				if (left < Common.L)
-					this.insertIntoLeafSet(leaveNode, Common.L - left - 1);
-				break;
-			case LEFT:
-				if (right < Common.L)
-					this.insertIntoLeafSet(leaveNode, Common.L + right);
-				break;
+			}
+
+			int position = this.calculatePosition(leaf.getKey(), side);
+
+			// If new node should be placed in one side (min distance) but
+			// it is out of range in this side (distance > Max distance (side))
+			// and there is free space in the other side, place it there
+			if (position == -1 && right < Common.L) {
+				position = Common.L + right;
+				leaveNode = null;
+			} else if (position == 2*Common.L && left < Common.L) {
+				position = Common.L - 1 - left;
+				leaveNode = null;
+			}
+
+			this.insertIntoLeafSet(leaf, position);
+
+			if (leaveNode != null) {
+				// If a node leaves the leafSet and there is 
+				// free space in the other side, then we place
+				// this node there.
+				switch (side){
+				case RIGHT:
+					if (left < Common.L)
+						this.insertIntoLeafSet(leaveNode, Common.L - left - 1);
+					break;
+				case LEFT:
+					if (right < Common.L)
+						this.insertIntoLeafSet(leaveNode, Common.L + right);
+					break;
+				}
 			}
 		}
-
 	}
 
 	@Override
@@ -203,7 +211,7 @@ public class LeafSetImpl implements LeafSet, Serializable {
 			int [] normKeys = this.normalize(nodeLeaf.getKey());
 			
 			// To testing
-			System.out.println("[" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
+			//System.out.println("[" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
 			
 			// Normalize new node key to the central node
 			int normNewNode = key - nodeLeaf.getKey();
@@ -300,7 +308,7 @@ public class LeafSetImpl implements LeafSet, Serializable {
 		int [] normKeys = this.normalize(nodeLeaf.getKey());
 					
 		// To testing
-		System.out.println("[" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
+		//System.out.println("[" + normKeys[0] +", "+ normKeys[1] +", "+ normKeys[2] +", "+ normKeys[3] + "]");
 					
 		// Normalize new node key to the central node
 		int normNewNode = key - nodeLeaf.getKey();
@@ -395,10 +403,17 @@ public class LeafSetImpl implements LeafSet, Serializable {
 			
 		}
 	}
+	
+	private Boolean isInLeafSet (int key){
+		Boolean result = false;
+		for (int i = 0; i < leafSet.length && !result; i++){
+			if (leafSet[i] != null && leafSet[i].getKey() == key)
+				result = true;
+		}
+		
+		return result;
+	}
 
-	/* (non-Javadoc)
-	 * @see java.lang.Object#toString()
-	 */
 	@Override
 	public String toString() {
 		String result = "------------------LeafSet---------------------\n-nodeLeaf=" + nodeLeaf + "\n-leafSet= [";

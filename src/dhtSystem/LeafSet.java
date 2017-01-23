@@ -11,6 +11,10 @@ import org.jgroups.Address;
  */
 public interface LeafSet {
 
+	public Leaf getNodeLeaf();
+	public void setNodeLeaf(Leaf nodeLeaf);
+	public Leaf [] getLeafSet ();
+	public void setLeafSet(Leaf[] leafSet);
 	public void addLeaf (Leaf leaf);
 	public void removeLeaf (int key);
 	public Boolean isInRange (int key);

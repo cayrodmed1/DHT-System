@@ -8,6 +8,8 @@ import org.jgroups.conf.ClassConfigurator;
 
 import dhtSystem.messages.JoinMessage;
 import dhtSystem.messages.TypeOfMessageHeader;
+import dhtSystem.messages.LeafSetMessage;
+import dhtSystem.messages.NewNodeMessage;
 
 
 /**
@@ -15,7 +17,7 @@ import dhtSystem.messages.TypeOfMessageHeader;
  *
  */
 public class Node extends ReceiverAdapter{
-	private Leaf leaf;
+	private Leaf ownLeaf;
 	private LeafSet leafSet;
 	
 	private JChannel channel;
@@ -53,29 +55,29 @@ public class Node extends ReceiverAdapter{
         }
         
         // Create my own leaf
-        leaf = new Leaf(channel.getAddress());
+        ownLeaf = new Leaf(channel.getAddress());
         
         // Create an empty leafSet
-        leafSet = new LeafSetImpl(leaf);
+        leafSet = new LeafSetImpl(ownLeaf);
         
         ClassConfigurator.add(Common.TYPE_HEADER_MAGIC_ID, TypeOfMessageHeader.class);
         
         if (getView().size() > 1)
-        	join(getView().getMembers().get(0));
+        	join(getView().getMembers().get(0), ownLeaf);
 	}
 
 	/**
-	 * @return the leaf
+	 * @return the ownLeaf
 	 */
-	public Leaf getLeaf() {
-		return leaf;
+	public Leaf getOwnLeaf() {
+		return ownLeaf;
 	}
 
 	/**
-	 * @param leaf the leaf to set
+	 * @param ownLeaf the leaf to set
 	 */
-	public void setLeaf(Leaf leaf) {
-		this.leaf = leaf;
+	public void setOwnLeaf(Leaf leaf) {
+		this.ownLeaf = leaf;
 	}
 
 	/**
@@ -141,12 +143,23 @@ public class Node extends ReceiverAdapter{
 		int type = ((TypeOfMessageHeader) msg.getHeader(Common.TYPE_HEADER_MAGIC_ID)).getType();
 		switch (type){
 		case Common.JOIN:
+			System.out.println("JOIN RECEIVED");
 			joinReceived((JoinMessage) msg.getObject());
+			break;
+		case Common.NEW_NODE:
+			System.out.println("NEW NODE RECEIVED");
+			newNodeReceived((NewNodeMessage) msg.getObject());
+			System.out.println(leafSet);
+			break;
+		case Common.LEAF_SET:
+			System.out.println("LEAF SET RECEIVED");
+			leafSetReceived((LeafSetMessage) msg.getObject());
+			System.out.println(leafSet);
 			break;
 		}
 	}
 	
-	private void join(Address address){
+	private void join(Address address, Leaf leaf){
 		Message msg=new Message(address, new JoinMessage(leaf));
 		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.JOIN));
 		try{
@@ -157,10 +170,60 @@ public class Node extends ReceiverAdapter{
 	}
 	
 	private void joinReceived(JoinMessage join){
-		Leaf leaf = join.getLeaf();
-		if (leafSet.isInRange(leaf.getKey())) {
-			leafSet.addLeaf(leaf);
-			System.out.println("LeafSet changed: \n" + leafSet);
+		Leaf newLeaf = join.getLeaf();
+		Leaf closest = leafSet.closestLeaf(newLeaf.getKey());
+		if (leafSet.isInRange(newLeaf.getKey()) && closest.getKey() == ownLeaf.getKey()) {
+			// Send leafSet to the new node
+			sendLeafSet(newLeaf.getAddress(),this.leafSet);
+			// Send my own leaf to the new node
+			newNode(newLeaf.getAddress(), ownLeaf);
+			
+			// Send new node message to my leafSet
+			for (Leaf l: leafSet.getLeafSet()){
+				if (l != null)
+					newNode(l.getAddress(), newLeaf);
+			}
+			
+			// Add the new node to my own leafSet
+			leafSet.addLeaf(newLeaf);
+			
+			System.out.println(leafSet);
+			
+			//TODO update data
+		} else {
+			join(closest.getAddress(), newLeaf);
 		}
+	}
+	
+	private void newNode(Address address, Leaf leaf){
+		Message msg=new Message(address, new NewNodeMessage(leaf));
+		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.NEW_NODE));
+		try{
+			channel.send(msg);
+		} catch (Exception e) {
+			System.err.println("Error sending NewNodeMessage.");
+		}
+	}
+	
+	private void newNodeReceived (NewNodeMessage newNodeMsg){
+		Leaf newNode = newNodeMsg.getLeaf();
+		if (leafSet.isInRange(newNode.getKey())) {
+			leafSet.addLeaf(newNode);
+		}
+	}
+	
+	private void sendLeafSet (Address address, LeafSet leafSet){
+		Message msg=new Message(address, new LeafSetMessage(leafSet));
+		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.LEAF_SET));
+		try{
+			channel.send(msg);
+		} catch (Exception e) {
+			System.err.println("Error sending LeafSetMessage.");
+		}
+	}
+	
+	private void leafSetReceived (LeafSetMessage leafSetMsg){
+		leafSet = leafSetMsg.getLeafSet();
+		leafSet.setNodeLeaf(ownLeaf);
 	}
 }
