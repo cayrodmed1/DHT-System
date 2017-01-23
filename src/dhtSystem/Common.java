@@ -15,4 +15,7 @@ public class Common {
 	public final static int JOIN = 1;
 	public final static int NEW_NODE = 2;
 	public final static int LEAF_SET = 3;
+	public final static int PUT_DATA = 4;
+	public final static int GET_DATA = 5;
+	public final static int DATA = 6;
 }
