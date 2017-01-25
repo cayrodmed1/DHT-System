@@ -18,4 +18,6 @@ public class Common {
 	public final static int PUT_DATA = 4;
 	public final static int GET_DATA = 5;
 	public final static int DATA = 6;
+	public final static int REMOVE_DATA = 7;
+	public final static int BYE = 8;
 }

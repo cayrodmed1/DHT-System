@@ -12,6 +12,7 @@ import org.jgroups.conf.ClassConfigurator;
 import dhtSystem.messages.DataMessage;
 import dhtSystem.messages.GetDataMessage;
 import dhtSystem.messages.PutDataMessage;
+import dhtSystem.messages.RemoveDataMessage;
 import dhtSystem.messages.TypeOfMessageHeader;
 
 
@@ -50,8 +51,9 @@ public class DHT extends ReceiverAdapter {
 
 				try{
 					System.out.println("Choose an option:\n1.- Get data" +
-							"\n2.- Put data\n" +
-							"0.- Exit");
+							"\n2.- Put data" +
+							"\n3.- Remove data" +
+							"\n0.- Exit");
 
 					select = Integer.parseInt(scanner.nextLine()); 
 
@@ -63,6 +65,9 @@ public class DHT extends ReceiverAdapter {
 						break;
 					case 2: 
 						dht.putData();
+						break;
+					case 3: 
+						dht.removeData();
 						break;
 					case 0: 
 						System.out.println("Closing DHT agent...");
@@ -158,6 +163,23 @@ public class DHT extends ReceiverAdapter {
 			channel.send(msg);
 		} catch (Exception e) {
 			System.err.println("Error sending PutDataMessage.");
+		}
+	}
+	
+	public  void removeData() {
+		System.out.printf("Id of the data you want to remove: ");
+		String id = scanner.nextLine();
+		int key = Math.abs(id.hashCode() % Common.MAX_ADDR);
+		sendRemoveDataMessage (destAddress, key);
+	}
+	
+	private void sendRemoveDataMessage (Address address, int key){
+		Message msg=new Message(address, new RemoveDataMessage(key));
+		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.REMOVE_DATA));
+		try{
+			channel.send(msg);
+		} catch (Exception e) {
+			System.err.println("Error sending RemoveDataMessage.");
 		}
 	}
 	
