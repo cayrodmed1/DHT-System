@@ -7,6 +7,7 @@ import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
 import org.jgroups.conf.ClassConfigurator;
 
+import dhtSystem.messages.ByeMessage;
 import dhtSystem.messages.DataMessage;
 import dhtSystem.messages.GetDataMessage;
 import dhtSystem.messages.JoinMessage;
@@ -14,7 +15,9 @@ import dhtSystem.messages.TypeOfMessageHeader;
 import dhtSystem.messages.LeafSetMessage;
 import dhtSystem.messages.NewNodeMessage;
 import dhtSystem.messages.PutDataMessage;
+import dhtSystem.messages.RemoveDataMessage;
 
+import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Random;
 
@@ -44,7 +47,7 @@ public class Node extends ReceiverAdapter{
 		Node node = new Node();
 		//System.out.println(node.getLeafSet());
 		
-		if (node.getView().size() > 1) {
+		/*if (node.getView().size() > 1) {
 			Random rand = new Random();
 			int arg1 = rand.nextInt(1000);
 			int arg2 = rand.nextInt(999999);
@@ -53,8 +56,15 @@ public class Node extends ReceiverAdapter{
 			node.putData(node.getView().getMembers().get(0), data1);
 			node.getData(node.getOwnLeaf().getAddress(), 
 					node.getView().getMembers().get(0), data1.getKey());
-		}
+		}*/
 		
+		if (node.getView().size() >= 6 && node.getView().getMembers().get(5).toString().equals(node.getOwnLeaf().getAddress().toString())) {
+			Thread.sleep(5000);
+			for (int i = 0; i < node.getLeafSet().getLeafSet().length; i++)
+				node.bye(node.getLeafSet().getLeafSet()[i].getAddress(), node.getLeafSet(), node.getDataSet());
+			node.getChannel().close();
+		}
+			
 	}
 
 	/**
@@ -126,6 +136,20 @@ public class Node extends ReceiverAdapter{
 		this.leafSet = leafSet;
 	}
 	
+	/**
+	 * @return the dataSet
+	 */
+	public DataSet getDataSet() {
+		return dataSet;
+	}
+
+	/**
+	 * @param dataSet the dataSet to set
+	 */
+	public void setDataSet(DataSet dataSet) {
+		this.dataSet = dataSet;
+	}
+
 	/**
 	 * @return the channel
 	 */
@@ -202,6 +226,16 @@ public class Node extends ReceiverAdapter{
 			Data dataReceived = dataReceived((DataMessage) msg.getObject());
 			log.info(dataReceived);
 			break;
+		case Common.REMOVE_DATA:
+			log.info("REMOVE DATA RECEIVED");
+			removeDataReceived((RemoveDataMessage) msg.getObject());
+			log.info(dataSet);
+			break;
+		case Common.BYE:
+			log.info("BYE RECEIVED");
+			byeReceived((ByeMessage) msg.getObject());
+			log.info(leafSet);
+			log.info(dataSet);
 		}
 		
 		
@@ -344,6 +378,78 @@ public class Node extends ReceiverAdapter{
 	private Data dataReceived (DataMessage dataMsg){
 		return dataMsg.getData();
 	}
+	
+	private void removeData (Address address, int key){
+		Message msg=new Message(address, new RemoveDataMessage(key));
+		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.REMOVE_DATA));
+		try{
+			channel.send(msg);
+		} catch (Exception e) {
+			log.error("Error sending RemoveDataMessage.");
+		}
+	}
+	
+	private void removeDataReceived (RemoveDataMessage rmDataMsg){
+		int key = rmDataMsg.getKey();
+		Leaf closest = leafSet.closestLeaf(key);
+		
+		if (closest.getKey() == ownLeaf.getKey()) {
+			// Look for the data in the data set
+			if (dataSet.getData(key) != null) {
+				log.info("Removing data: " + dataSet.getData(key));
+
+				// Remove the data
+				dataSet.removeData(key);
+			} else {
+				log.info("Data not found.");
+			}
+			
+		} else {
+			// forward the message to the closest in your leaf set
+			removeData(closest.getAddress(), key);
+		}
+	}
+	
+	private void bye (Address address, LeafSet leafSet, DataSet dataSet){
+		Message msg=new Message(address, new ByeMessage(leafSet, dataSet));
+		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.BYE));
+		try{
+			channel.send(msg);
+		} catch (Exception e) {
+			log.error("Error sending Bye Message.");
+		}
+	}
+	
+	private void byeReceived (ByeMessage bye){
+		LeafSet leafSet = bye.getLeafSet();
+		DataSet dataSet = bye.getDataSet();
+		
+		// Remove leaf that sends BYE from my leafSet
+		this.leafSet.removeLeaf(leafSet.getNodeLeaf().getKey());
+		
+		// Check the leaving node's leaf set and add the closest node to my leaf set
+		for (int i = 0; i < leafSet.getLeafSet().length; i++){
+			if (this.leafSet.isInRange(leafSet.getLeafSet()[i].getKey()))
+				this.leafSet.addLeaf(leafSet.getLeafSet()[i]);
+		}
+		
+		// Iterate across the leaving node dataSet 
+		Iterator it = dataSet.getKeySet().iterator();
+		while (it.hasNext()){
+			Integer dataKey = (Integer) it.next();
+			Leaf closest = this.leafSet.closestLeaf(dataKey);
+			
+			// If I'm the closest node to the data, save it in my dataSet
+			if (closest.getKey() == ownLeaf.getKey()) {
+				// Add data to dataSet
+				this.dataSet.addData(dataSet.getData(dataKey));
+				
+				log.info(this.dataSet);
+			}
+		}
+	}
+	
+	
 	
 	private void redistributeData (Leaf leaf){
 		int newKey = leaf.getKey();

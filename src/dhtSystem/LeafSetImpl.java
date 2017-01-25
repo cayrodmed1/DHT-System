@@ -199,8 +199,27 @@ public class LeafSetImpl implements LeafSet, Serializable {
 
 	@Override
 	public void removeLeaf(int key) {
-		// TODO Auto-generated method stub
-
+		Leaf [] leafSetBackup = new Leaf[leafSet.length];
+		
+		for (int i = 0; i < leafSet.length; i++){
+			if (leafSet[i] != null){
+				// If it is the leaf I want to remove, just put it to null
+				// but if it is another leaf, I want to keep it
+				if (leafSet[i].getKey() != key){
+					leafSetBackup[i] = leafSet[i];
+				}
+				// In any case, put leafSet to null
+				leafSet[i] = null;
+			}
+		}
+		
+		left = 0;
+		right = 0;
+		
+		// Add nodes that I want to keep, now in order
+		for (int j = 0; j < leafSetBackup.length; j++)
+			if (leafSetBackup[j] != null)
+				this.addLeaf(leafSetBackup[j]);
 	}
 
 	@Override

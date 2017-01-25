@@ -1,13 +1,15 @@
 package dhtSystem;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map.Entry;
+import java.util.Set;
 
 /**
  * @author Alejandro Rodriguez Calzado
  *
  */
-public class DataSetImpl implements DataSet {
+public class DataSetImpl implements DataSet, Serializable {
 
 	private HashMap <Integer,Data> dataSet;
 	
@@ -44,6 +46,16 @@ public class DataSetImpl implements DataSet {
 	}
 	
 	@Override
+	public int size() {
+		return dataSet.size();
+	}
+	
+	@Override
+	public Set<Integer> getKeySet(){
+		return dataSet.keySet();
+	}
+	
+	@Override
 	public Boolean isInDataSet (int key) {
 		return dataSet.containsKey(key);
 	}
@@ -69,8 +81,5 @@ public class DataSetImpl implements DataSet {
 	public String toString() {
 		return String.format("DataSetImpl [dataSet=%s]", dataSet);
 	}
-
-
-
 
 }
