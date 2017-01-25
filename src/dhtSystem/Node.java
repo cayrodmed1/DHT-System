@@ -45,26 +45,9 @@ public class Node extends ReceiverAdapter{
 	public static void main(String[] args) throws Exception{
 	
 		Node node = new Node();
-		//System.out.println(node.getLeafSet());
 		
-		/*if (node.getView().size() > 1) {
-			Random rand = new Random();
-			int arg1 = rand.nextInt(1000);
-			int arg2 = rand.nextInt(999999);
-			Data data1 = new Data ("" + arg1, "" + arg2);
-			System.out.println("Data generated: " + data1);
-			node.putData(node.getView().getMembers().get(0), data1);
-			node.getData(node.getOwnLeaf().getAddress(), 
-					node.getView().getMembers().get(0), data1.getKey());
-		}*/
-		
-		if (node.getView().size() >= 6 && node.getView().getMembers().get(5).toString().equals(node.getOwnLeaf().getAddress().toString())) {
-			Thread.sleep(5000);
-			for (int i = 0; i < node.getLeafSet().getLeafSet().length; i++)
-				node.bye(node.getLeafSet().getLeafSet()[i].getAddress(), node.getLeafSet(), node.getDataSet());
-			node.getChannel().close();
-		}
-			
+		ShutdownHelper shutdownHelper = new ShutdownHelper(node);
+        Runtime.getRuntime().addShutdownHook(shutdownHelper);
 	}
 
 	/**
@@ -464,6 +447,15 @@ public class Node extends ReceiverAdapter{
 			dataSet.removeData(entry.getKey());
 		}
 		
+	}
+	
+	public void shutdown (){
+		log.info("The node is being disconnected from the DHT cluster...");
+		
+		for (int i = 0; i <leafSet.getLeafSet().length; i++)
+			if (leafSet.getLeafSet()[i] != null)
+				bye(leafSet.getLeafSet()[i].getAddress(), leafSet, dataSet);
+		channel.close();
 	}
 	
 }
