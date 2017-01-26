@@ -9,18 +9,44 @@ import dhtSystem.LeafSet;
  * @author Alejandro Rodriguez Calzado
  *
  */
-public class ByeMessage implements Serializable {
-	
+public class StateMessage implements Serializable {
+
+	private int nodeKey;
 	private LeafSet leafSet;
 	private DataSet dataSet;
 	
 	/**
+	 * @param nodeKey
+	 */
+	public StateMessage(int nodeKey) {
+		this.nodeKey = nodeKey;
+		this.leafSet = null;
+		this.dataSet = null;
+	}
+	
+	/**
+	 * @param nodeKey
 	 * @param leafSet
 	 * @param dataSet
 	 */
-	public ByeMessage(LeafSet leafSet, DataSet dataSet) {
+	public StateMessage(int nodeKey, LeafSet leafSet, DataSet dataSet) {
+		this.nodeKey = nodeKey;
 		this.leafSet = leafSet;
 		this.dataSet = dataSet;
+	}
+
+	/**
+	 * @return the nodeKey
+	 */
+	public int getNodeKey() {
+		return nodeKey;
+	}
+
+	/**
+	 * @param nodeKey the nodeKey to set
+	 */
+	public void setNodeKey(int nodeKey) {
+		this.nodeKey = nodeKey;
 	}
 
 	/**
@@ -48,9 +74,8 @@ public class ByeMessage implements Serializable {
 		this.dataSet = dataSet;
 	}
 
-
 	@Override
 	public String toString() {
-		return String.format("ByeMessage [leafSet=%s, dataSet=%s]", leafSet, dataSet);
+		return String.format("StateMessage [nodeKey=%s, leafSet=%s, dataSet=%s]", nodeKey, leafSet, dataSet);
 	}
 }

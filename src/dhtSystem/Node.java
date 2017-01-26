@@ -16,10 +16,13 @@ import dhtSystem.messages.LeafSetMessage;
 import dhtSystem.messages.NewNodeMessage;
 import dhtSystem.messages.PutDataMessage;
 import dhtSystem.messages.RemoveDataMessage;
+import dhtSystem.messages.StateMessage;
 
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Timer;
 
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
@@ -33,6 +36,9 @@ public class Node extends ReceiverAdapter{
 	private LeafSet leafSet;
 	
 	private DataSet dataSet;
+	
+	private Boolean stateChanged;
+	private HashMap <Integer, Timer> timers;
 	
 	private JChannel channel;
 	private View view;
@@ -89,6 +95,12 @@ public class Node extends ReceiverAdapter{
         
         if (getView().size() > 1)
         	join(getView().getMembers().get(0), ownLeaf);
+        
+        // Set the timers to know when a node is dead.
+        stateChanged = true;
+        timers = new HashMap <Integer, Timer>();
+        timers.put(ownLeaf.getKey(), new Timer());
+        timers.get(ownLeaf.getKey()).scheduleAtFixedRate(new TimerNodeTask (this), 0, 1000);
 	}
 
 	/**
@@ -219,6 +231,11 @@ public class Node extends ReceiverAdapter{
 			byeReceived((ByeMessage) msg.getObject());
 			log.info(leafSet);
 			log.info(dataSet);
+			break;
+		case Common.STATE:
+			log.info("STATE RECEIVED");
+			stateReceived((StateMessage) msg.getObject());
+			break;
 		}
 		
 		
@@ -254,10 +271,13 @@ public class Node extends ReceiverAdapter{
 			
 			log.info(leafSet);
 			
-			//TODO update data
+			// Update data
 			redistributeData(newLeaf);
 			
 			log.info(dataSet);
+			
+			// State changed
+			stateChanged = true;
 		} else {
 			join(closest.getAddress(), newLeaf);
 		}
@@ -278,6 +298,9 @@ public class Node extends ReceiverAdapter{
 		if (leafSet.isInRange(newNode.getKey())) {
 			leafSet.addLeaf(newNode);
 			redistributeData(newNode);
+			
+			// State changed
+			stateChanged = true;
 		}
 	}
 	
@@ -314,6 +337,9 @@ public class Node extends ReceiverAdapter{
 			dataSet.addData(data);
 			
 			log.info(dataSet);
+			
+			// State changed
+			stateChanged = true;
 			
 		} else {
 			// forward the message to the closest in your leaf set
@@ -383,6 +409,9 @@ public class Node extends ReceiverAdapter{
 
 				// Remove the data
 				dataSet.removeData(key);
+				
+				// State changed
+				stateChanged = true;
 			} else {
 				log.info("Data not found.");
 			}
@@ -430,8 +459,24 @@ public class Node extends ReceiverAdapter{
 			}
 		}
 		log.info(this.dataSet);
+		
+		// State changed
+		stateChanged = true;
 	}
 	
+	private void state (Address address, int nodeKey, LeafSet leafSet, DataSet dataSet){
+		Message msg=new Message(address, new StateMessage(nodeKey, leafSet, dataSet));
+		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.STATE));
+		try{
+			channel.send(msg);
+		} catch (Exception e) {
+			log.error("Error sending State Message.");
+		}
+	}
+	
+	private void stateReceived (StateMessage stateMsg){
+		log.debug(stateMsg);
+	}
 	
 	
 	private void redistributeData (Leaf leaf){
@@ -447,6 +492,28 @@ public class Node extends ReceiverAdapter{
 			dataSet.removeData(entry.getKey());
 		}
 		
+	}
+	
+	// This function send the node's state to keep alive the connection
+	// with the two closest nodes.
+	public void keepAlive (){
+		if (stateChanged){
+			if (leafSet.getLeafSet()[Common.L - 1] != null)
+				state(leafSet.getLeafSet()[Common.L -1].getAddress(), 
+						ownLeaf.getKey(), leafSet, dataSet);
+			if (leafSet.getLeafSet()[Common.L] != null)
+				state(leafSet.getLeafSet()[Common.L].getAddress(), 
+						ownLeaf.getKey(), leafSet, dataSet);
+			
+			stateChanged = false;
+		} else {
+			if (leafSet.getLeafSet()[Common.L - 1] != null)
+				state(leafSet.getLeafSet()[Common.L -1].getAddress(), 
+						ownLeaf.getKey(), null, null);
+			if (leafSet.getLeafSet()[Common.L] != null)
+				state(leafSet.getLeafSet()[Common.L].getAddress(), 
+						ownLeaf.getKey(), null, null);
+		}
 	}
 	
 	public void shutdown (){
