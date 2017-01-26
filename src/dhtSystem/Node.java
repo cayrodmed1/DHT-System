@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Random;
+import java.util.Set;
 import java.util.Timer;
 
 import org.apache.log4j.BasicConfigurator;
@@ -100,7 +101,7 @@ public class Node extends ReceiverAdapter{
         stateChanged = true;
         timers = new HashMap <Integer, Timer>();
         timers.put(ownLeaf.getKey(), new Timer());
-        timers.get(ownLeaf.getKey()).scheduleAtFixedRate(new TimerNodeTask (this), 0, 1000);
+        timers.get(ownLeaf.getKey()).scheduleAtFixedRate(new NodeTimerTask (this), 0, Common.KEEP_ALIVE_PERIOD);
 	}
 
 	/**
@@ -278,6 +279,9 @@ public class Node extends ReceiverAdapter{
 			
 			// State changed
 			stateChanged = true;
+			
+			// Update timers
+			updateTimers();
 		} else {
 			join(closest.getAddress(), newLeaf);
 		}
@@ -301,6 +305,9 @@ public class Node extends ReceiverAdapter{
 			
 			// State changed
 			stateChanged = true;
+			
+			// Update timers
+			updateTimers ();
 		}
 	}
 	
@@ -462,6 +469,9 @@ public class Node extends ReceiverAdapter{
 		
 		// State changed
 		stateChanged = true;
+		
+		// Update timers
+		updateTimers();
 	}
 	
 	private void state (Address address, int nodeKey, LeafSet leafSet, DataSet dataSet){
@@ -476,6 +486,21 @@ public class Node extends ReceiverAdapter{
 	
 	private void stateReceived (StateMessage stateMsg){
 		log.debug(stateMsg);
+		
+		int key = stateMsg.getNodeKey();
+		
+		if ((leafSet.getLeafSet()[Common.L -1] != null && leafSet.getLeafSet()[Common.L -1].getKey() == key) 
+				||	(leafSet.getLeafSet()[Common.L] != null && leafSet.getLeafSet()[Common.L].getKey() == key)) {
+
+			// Reset timer
+			if(timers.get(key) != null) {
+				timers.get(key).cancel();
+				timers.get(key).purge();
+			}
+			
+			timers.put(key, new Timer());
+			timers.get(key).schedule(new NeighborsTimerTask (this, key), Common.NEIGHBOR_PERIOD);	
+		}
 	}
 	
 	
@@ -498,22 +523,83 @@ public class Node extends ReceiverAdapter{
 	// with the two closest nodes.
 	public void keepAlive (){
 		if (stateChanged){
-			if (leafSet.getLeafSet()[Common.L - 1] != null)
-				state(leafSet.getLeafSet()[Common.L -1].getAddress(), 
-						ownLeaf.getKey(), leafSet, dataSet);
-			if (leafSet.getLeafSet()[Common.L] != null)
-				state(leafSet.getLeafSet()[Common.L].getAddress(), 
-						ownLeaf.getKey(), leafSet, dataSet);
-			
+			for (int i = 0; i < leafSet.getLeafSet().length; i++)
+				if (leafSet.getLeafSet()[i] != null)
+					state(leafSet.getLeafSet()[i].getAddress(), 
+							ownLeaf.getKey(), leafSet, dataSet);
+
 			stateChanged = false;
 		} else {
-			if (leafSet.getLeafSet()[Common.L - 1] != null)
-				state(leafSet.getLeafSet()[Common.L -1].getAddress(), 
-						ownLeaf.getKey(), null, null);
-			if (leafSet.getLeafSet()[Common.L] != null)
-				state(leafSet.getLeafSet()[Common.L].getAddress(), 
-						ownLeaf.getKey(), null, null);
+			for (int i = 0; i < leafSet.getLeafSet().length; i++)
+				if (leafSet.getLeafSet()[i] != null)
+					state(leafSet.getLeafSet()[i].getAddress(), 
+							ownLeaf.getKey(), null, null);
 		}
+	}
+	
+	public void deadNode (int deadNodeKey){
+		log.info("Dead Node: " + deadNodeKey);
+	}
+	
+	private void updateTimers (){
+
+		/*if ( (leafSet.getLeafSet()[Common.L - 1] != null 
+				&& !timers.containsKey(leafSet.getLeafSet()[Common.L - 1].getKey()) ) ||
+				(leafSet.getLeafSet()[Common.L] != null 
+				&& !timers.containsKey(leafSet.getLeafSet()[Common.L].getKey()) ) ) {*/
+			// If my closests nodes change..
+			
+			// Auxiliary timers structure
+			HashMap <Integer, Timer> t = new HashMap <Integer, Timer>();
+			// Copy timers
+			for (Integer i: timers.keySet()){
+				t.put(i, null);
+			}
+			
+			Set <Integer> keySet = t.keySet();
+			
+			// Delete my own key from the keySet
+			keySet.remove(ownLeaf.getKey());
+			
+			// Delete my closest nodes from the keySet if they are present
+			if (leafSet.getLeafSet()[Common.L - 1] != null)
+				keySet.remove(leafSet.getLeafSet()[Common.L - 1].getKey());
+			if (leafSet.getLeafSet()[Common.L] != null)
+				keySet.remove(leafSet.getLeafSet()[Common.L].getKey());
+			
+			Iterator it = keySet.iterator();
+			
+			// Delete timers that don't matter now
+			while (it.hasNext()){
+				int k = (int) it.next();
+				timers.get(k).cancel();
+				timers.get(k).purge();
+				timers.remove(k);
+			}
+			
+			// Put timers for new closests nodes
+			if (leafSet.getLeafSet()[Common.L - 1] != null &&
+				timers.putIfAbsent(leafSet.getLeafSet()[Common.L - 1].getKey(), new Timer()) == null) {
+				
+				timers.get(leafSet.getLeafSet()[Common.L - 1].getKey()).schedule(new NeighborsTimerTask (this, 
+						leafSet.getLeafSet()[Common.L - 1].getKey()), Common.NEIGHBOR_PERIOD);
+			}
+			if (leafSet.getLeafSet()[Common.L] != null &&
+				timers.putIfAbsent(leafSet.getLeafSet()[Common.L].getKey(), new Timer()) == null) {
+				timers.get(leafSet.getLeafSet()[Common.L].getKey()).schedule(new NeighborsTimerTask (this, 
+						leafSet.getLeafSet()[Common.L].getKey()), Common.NEIGHBOR_PERIOD);
+			}
+			
+		//} else 
+			/*if (leafSet.getLeafSet()[Common.L - 1] == null && leafSet.getLeafSet()[Common.L] == null){
+			// Remove unused timers
+			Timer tAux = timers.get(ownLeaf.getKey());
+			timers.clear();
+			timers.put(ownLeaf.getKey(), tAux);
+			log.info(timers);
+		}*/
+		
+		log.info("Timers: " + timers);
 	}
 	
 	public void shutdown (){

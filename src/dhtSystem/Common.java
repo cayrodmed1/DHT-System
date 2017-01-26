@@ -11,6 +11,7 @@ public class Common {
 	
 	public final static int MAX_ADDR = 1024;
 	public final static int L = 2;
+	
 	public final static short TYPE_HEADER_MAGIC_ID = 1994;
 	public final static int JOIN = 1;
 	public final static int NEW_NODE = 2;
@@ -21,4 +22,7 @@ public class Common {
 	public final static int REMOVE_DATA = 7;
 	public final static int BYE = 8;
 	public final static int STATE = 9;
+	
+	public final static long KEEP_ALIVE_PERIOD = 1000; //ms
+	public final static long NEIGHBOR_PERIOD = 3000; //ms
 }

@@ -9,11 +9,11 @@ import java.util.TimerTask;
  * @author Alejandro Rodriguez Calzado
  *
  */
-public class TimerNodeTask extends TimerTask {
+public class NodeTimerTask extends TimerTask {
 
 	Node node;
 	
-	public TimerNodeTask(Node node) {
+	public NodeTimerTask(Node node) {
 		this.node = node;
 	}
 
