@@ -412,7 +412,8 @@ public class Node extends ReceiverAdapter{
 		
 		// Check the leaving node's leaf set and add the closest node to my leaf set
 		for (int i = 0; i < leafSet.getLeafSet().length; i++){
-			if (this.leafSet.isInRange(leafSet.getLeafSet()[i].getKey()))
+			
+			if (leafSet.getLeafSet()[i] != null && this.leafSet.isInRange(leafSet.getLeafSet()[i].getKey()))
 				this.leafSet.addLeaf(leafSet.getLeafSet()[i]);
 		}
 		
@@ -426,10 +427,9 @@ public class Node extends ReceiverAdapter{
 			if (closest.getKey() == ownLeaf.getKey()) {
 				// Add data to dataSet
 				this.dataSet.addData(dataSet.getData(dataKey));
-				
-				log.info(this.dataSet);
 			}
 		}
+		log.info(this.dataSet);
 	}
 	
 	
