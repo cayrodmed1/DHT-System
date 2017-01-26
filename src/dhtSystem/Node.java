@@ -542,12 +542,6 @@ public class Node extends ReceiverAdapter{
 	}
 	
 	private void updateTimers (){
-
-		/*if ( (leafSet.getLeafSet()[Common.L - 1] != null 
-				&& !timers.containsKey(leafSet.getLeafSet()[Common.L - 1].getKey()) ) ||
-				(leafSet.getLeafSet()[Common.L] != null 
-				&& !timers.containsKey(leafSet.getLeafSet()[Common.L].getKey()) ) ) {*/
-			// If my closests nodes change..
 			
 			// Auxiliary timers structure
 			HashMap <Integer, Timer> t = new HashMap <Integer, Timer>();
@@ -590,15 +584,6 @@ public class Node extends ReceiverAdapter{
 						leafSet.getLeafSet()[Common.L].getKey()), Common.NEIGHBOR_PERIOD);
 			}
 			
-		//} else 
-			/*if (leafSet.getLeafSet()[Common.L - 1] == null && leafSet.getLeafSet()[Common.L] == null){
-			// Remove unused timers
-			Timer tAux = timers.get(ownLeaf.getKey());
-			timers.clear();
-			timers.put(ownLeaf.getKey(), tAux);
-			log.info(timers);
-		}*/
-		
 		log.info("Timers: " + timers);
 	}
 	
