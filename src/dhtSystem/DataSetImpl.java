@@ -2,6 +2,7 @@ package dhtSystem;
 
 import java.io.Serializable;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Set;
 
@@ -79,7 +80,19 @@ public class DataSetImpl implements DataSet, Serializable {
 	
 	@Override
 	public String toString() {
-		return String.format("DataSetImpl [dataSet=%s]", dataSet);
+		String result = "\n------------------DataSet---------------------\n";
+		
+		Set <Integer> keySet = dataSet.keySet();
+		Iterator it = keySet.iterator();
+		
+		while (it.hasNext()){
+			int d = (Integer) it.next();
+			result += dataSet.get(d).toString() + "\n"; 
+		}
+		
+		result += "----------------------------------------------";
+		
+		return result;
 	}
 
 }

@@ -10,6 +10,7 @@ import org.jgroups.conf.ClassConfigurator;
 import dhtSystem.messages.ByeMessage;
 import dhtSystem.messages.DataMessage;
 import dhtSystem.messages.GetDataMessage;
+import dhtSystem.messages.GetStateMessage;
 import dhtSystem.messages.JoinMessage;
 import dhtSystem.messages.TypeOfMessageHeader;
 import dhtSystem.messages.LeafSetMessage;
@@ -230,7 +231,6 @@ public class Node extends ReceiverAdapter{
 		case Common.REMOVE_DATA:
 			log.info("REMOVE DATA RECEIVED");
 			removeDataReceived((RemoveDataMessage) msg.getObject());
-			log.info(dataSet);
 			break;
 		case Common.BYE:
 			log.info("BYE RECEIVED");
@@ -241,6 +241,10 @@ public class Node extends ReceiverAdapter{
 		case Common.STATE:
 			log.debug("STATE RECEIVED");
 			stateReceived((StateMessage) msg.getObject());
+			break;
+		case Common.GET_STATE:
+			log.debug("GET STATE RECEIVED");
+			getStateReceived((GetStateMessage) msg.getObject());
 			break;
 		}
 		
@@ -426,6 +430,8 @@ public class Node extends ReceiverAdapter{
 				// Remove the data
 				dataSet.removeData(key);
 				
+				log.info(dataSet);
+				
 				// State changed
 				stateChanged = true;
 			} else {
@@ -527,6 +533,31 @@ public class Node extends ReceiverAdapter{
 		log.debug(dataSetBackups);
 	}
 	
+	private void getState (Address srcAddress, Address destAddress, int key){
+		Message msg=new Message(destAddress, new GetStateMessage(key, srcAddress));
+		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.GET_STATE));
+		try{
+			channel.send(msg);
+		} catch (Exception e) {
+			log.error("Error sending GetStateMessage.");
+		}
+	}
+	
+	private void getStateReceived (GetStateMessage getStateMsg){
+		int key = getStateMsg.getKey();
+		Address srcAddress = getStateMsg.getAddress();
+		Leaf closest = leafSet.closestLeaf(key);
+		
+		if (ownLeaf.getKey() == key) {
+			// Return my state			
+			state(srcAddress, ownLeaf.getKey(), leafSet, dataSet);
+						
+		} else if (closest.getKey() != ownLeaf.getKey()){
+			// forward the message to the closest in your leaf set
+			getState(srcAddress, closest.getAddress(), key);
+		}
+	}
+	
 	
 	private void redistributeData (Leaf leaf){
 		int newKey = leaf.getKey();
@@ -622,7 +653,7 @@ public class Node extends ReceiverAdapter{
 					leafSet.getLeafSet()[Common.L].getKey()), Common.NEIGHBOR_PERIOD);
 		}
 
-		log.info("Timers: " + timers);
+		log.debug("Timers: " + timers);
 	}
 
 	// This function removes the leafSet backups that don't belong to my closest 

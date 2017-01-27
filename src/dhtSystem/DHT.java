@@ -11,8 +11,10 @@ import org.jgroups.conf.ClassConfigurator;
 
 import dhtSystem.messages.DataMessage;
 import dhtSystem.messages.GetDataMessage;
+import dhtSystem.messages.GetStateMessage;
 import dhtSystem.messages.PutDataMessage;
 import dhtSystem.messages.RemoveDataMessage;
+import dhtSystem.messages.StateMessage;
 import dhtSystem.messages.TypeOfMessageHeader;
 
 
@@ -53,6 +55,7 @@ public class DHT extends ReceiverAdapter {
 					System.out.println("Choose an option:\n1.- Get data" +
 							"\n2.- Put data" +
 							"\n3.- Remove data" +
+							"\n4.- Get node state" +
 							"\n0.- Exit");
 
 					select = Integer.parseInt(scanner.nextLine()); 
@@ -68,6 +71,10 @@ public class DHT extends ReceiverAdapter {
 						break;
 					case 3: 
 						dht.removeData();
+						break;
+					case 4: 
+						dht.getState();
+						dht.wait();
 						break;
 					case 0: 
 						System.out.println("Closing DHT agent...");
@@ -107,8 +114,6 @@ public class DHT extends ReceiverAdapter {
 					if (view.getMembers().get(i).toString().equals(addr))
 						destAddress = view.getMembers().get(i);
 				}
-			} else {
-				destAddress = view.getMembers().get(0);
 			}
 		} else {
 			System.err.println("There aren't nodes in the DHT cluster.");
@@ -130,7 +135,12 @@ public class DHT extends ReceiverAdapter {
 	}
 	
 	private void sendGetDataMessage (Address srcAddress, Address destAddress, int key){
-		Message msg=new Message(destAddress, new GetDataMessage(key, srcAddress));
+		Message msg = null;
+		if (destAddress != null)
+			msg=new Message(destAddress, new GetDataMessage(key, srcAddress));
+		else
+			msg=new Message(view.getMembers().get(0), new GetDataMessage(key, srcAddress));
+			
 		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.GET_DATA));
 		try{
 			channel.send(msg);
@@ -157,7 +167,12 @@ public class DHT extends ReceiverAdapter {
 	}
 	
 	private void sendPutDataMessage (Address address, Data data){
-		Message msg=new Message(address, new PutDataMessage(data));
+		Message msg = null;
+		if (destAddress != null)
+			msg=new Message(destAddress, new PutDataMessage(data));
+		else
+			msg=new Message(view.getMembers().get(0), new PutDataMessage(data));
+
 		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.PUT_DATA));
 		try{
 			channel.send(msg);
@@ -174,13 +189,50 @@ public class DHT extends ReceiverAdapter {
 	}
 	
 	private void sendRemoveDataMessage (Address address, int key){
-		Message msg=new Message(address, new RemoveDataMessage(key));
+		Message msg = null;
+		if (destAddress != null)
+			msg=new Message(destAddress, new RemoveDataMessage(key));
+		else
+			msg=new Message(view.getMembers().get(0), new RemoveDataMessage(key));
+
 		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.REMOVE_DATA));
 		try{
 			channel.send(msg);
 		} catch (Exception e) {
 			System.err.println("Error sending RemoveDataMessage.");
 		}
+	}
+	
+	public  void getState() {
+		System.out.printf("key of the node's state you want to get: ");
+		int key = Integer.parseInt(scanner.nextLine());
+		
+		sendGetStateMessage (channel.getAddress(), destAddress, key);
+	}
+	
+	private void sendGetStateMessage (Address srcAddress, Address destAddress, int key){
+		Message msg = null;
+		if (destAddress != null)
+			msg=new Message(destAddress, new GetStateMessage(key, srcAddress));
+		else
+			msg=new Message(view.getMembers().get(0), new GetStateMessage(key, srcAddress));
+
+		msg.putHeader(Common.TYPE_HEADER_MAGIC_ID, new TypeOfMessageHeader(Common.GET_STATE));
+		try{
+			channel.send(msg);
+		} catch (Exception e) {
+			System.err.println("Error sending GetStateMessage.");
+		}
+	}
+	
+	private void stateReceived (StateMessage stateMsg){
+		int key = stateMsg.getNodeKey();
+		LeafSet leafSet = stateMsg.getLeafSet();
+		DataSet dataSet = stateMsg.getDataSet();
+		
+		System.out.println("State of node " + key);
+		System.out.println(leafSet);
+		System.out.println(dataSet);
 	}
 	
 	public void viewAccepted (View new_view) {
@@ -210,6 +262,10 @@ public class DHT extends ReceiverAdapter {
 					System.out.println("\n" + dataReceived);
 				else
 					System.out.println("The requested data doesn't exist in the DHT cluster.");
+				dht.notify();
+				break;
+			case Common.STATE:
+				stateReceived((StateMessage) msg.getObject());
 				dht.notify();
 				break;
 			}

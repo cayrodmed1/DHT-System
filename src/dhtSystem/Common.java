@@ -22,6 +22,7 @@ public class Common {
 	public final static int REMOVE_DATA = 7;
 	public final static int BYE = 8;
 	public final static int STATE = 9;
+	public final static int GET_STATE = 10;
 	
 	public final static long KEEP_ALIVE_PERIOD = 1000; //ms
 	public final static long NEIGHBOR_PERIOD = 3000; //ms
