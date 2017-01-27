@@ -20,4 +20,5 @@ public interface LeafSet {
 	public Boolean isInRange (int key);
 	public Address getAddressByKey (int key);
 	public Leaf closestLeaf (int key);
+	public Leaf closestLeafToNodeLeaf();
 }

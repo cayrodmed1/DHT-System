@@ -305,6 +305,33 @@ public class LeafSetImpl implements LeafSet, Serializable {
 		return closest;
 	}
 	
+	@Override
+	public Leaf closestLeafToNodeLeaf(){
+		int dist = Integer.MAX_VALUE;
+		Leaf closest = null;
+		
+		// Normalize LeafSet to the given node
+		int[] normKeys = this.normalize(nodeLeaf.getKey());
+		
+		// Calculate the lower distance between the LeafSet leafs and the  node.
+		// If we get a distance that is lower than the stored distance, we change it,
+		// and we will return the leaf that has the lower distance (right or left)
+		for (int i=0; i<leafSet.length; i++) {
+			if (leafSet[i] != null) {
+				if (normKeys[i] < dist) {
+					dist = normKeys[i];
+					closest = leafSet[i];
+				}
+				if (Common.MAX_ADDR - normKeys[i] < dist){
+					dist = Common.MAX_ADDR - normKeys[i];
+					closest = leafSet[i];
+				}		
+			}
+		}
+		
+		return closest;		
+	}
+	
 	// Normalize LeafSet to the given node
 	private int [] normalize (int key) {
 		int[] normKeys = new int[2*Common.L];

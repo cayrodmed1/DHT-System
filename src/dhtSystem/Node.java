@@ -40,6 +40,8 @@ public class Node extends ReceiverAdapter{
 	
 	private Boolean stateChanged;
 	private HashMap <Integer, Timer> timers;
+	private HashMap <Integer, LeafSet> leafSetBackups;
+	private HashMap <Integer, DataSet> dataSetBackups;
 	
 	private JChannel channel;
 	private View view;
@@ -102,6 +104,9 @@ public class Node extends ReceiverAdapter{
         timers = new HashMap <Integer, Timer>();
         timers.put(ownLeaf.getKey(), new Timer());
         timers.get(ownLeaf.getKey()).scheduleAtFixedRate(new NodeTimerTask (this), 0, Common.KEEP_ALIVE_PERIOD);
+        
+        leafSetBackups = new HashMap <Integer, LeafSet>();
+        dataSetBackups = new HashMap <Integer, DataSet>();
 	}
 
 	/**
@@ -234,7 +239,7 @@ public class Node extends ReceiverAdapter{
 			log.info(dataSet);
 			break;
 		case Common.STATE:
-			log.info("STATE RECEIVED");
+			log.debug("STATE RECEIVED");
 			stateReceived((StateMessage) msg.getObject());
 			break;
 		}
@@ -280,8 +285,10 @@ public class Node extends ReceiverAdapter{
 			// State changed
 			stateChanged = true;
 			
-			// Update timers
+			// Update timers, leafSet backups and dataSet backups
 			updateTimers();
+			updateLeafSetBackups ();
+			updateDataSetBackups ();
 		} else {
 			join(closest.getAddress(), newLeaf);
 		}
@@ -306,8 +313,10 @@ public class Node extends ReceiverAdapter{
 			// State changed
 			stateChanged = true;
 			
-			// Update timers
+			// Update timers, leafSet backups and dataSet backups
 			updateTimers ();
+			updateLeafSetBackups ();
+			updateDataSetBackups ();
 		}
 	}
 	
@@ -470,8 +479,10 @@ public class Node extends ReceiverAdapter{
 		// State changed
 		stateChanged = true;
 		
-		// Update timers
+		// Update timers, leafSet backup and dataSet backup
 		updateTimers();
+		updateLeafSetBackups ();
+		updateDataSetBackups ();
 	}
 	
 	private void state (Address address, int nodeKey, LeafSet leafSet, DataSet dataSet){
@@ -487,8 +498,9 @@ public class Node extends ReceiverAdapter{
 	private void stateReceived (StateMessage stateMsg){
 		log.debug(stateMsg);
 		
-		int key = stateMsg.getNodeKey();
+		int key = stateMsg.getNodeKey(); 
 		
+		// If the state message come from one of my closest nodes...
 		if ((leafSet.getLeafSet()[Common.L -1] != null && leafSet.getLeafSet()[Common.L -1].getKey() == key) 
 				||	(leafSet.getLeafSet()[Common.L] != null && leafSet.getLeafSet()[Common.L].getKey() == key)) {
 
@@ -499,8 +511,20 @@ public class Node extends ReceiverAdapter{
 			}
 			
 			timers.put(key, new Timer());
-			timers.get(key).schedule(new NeighborsTimerTask (this, key), Common.NEIGHBOR_PERIOD);	
+			timers.get(key).schedule(new NeighborsTimerTask (this, key), Common.NEIGHBOR_PERIOD);
+			
+			// Update leafSets backup
+			if (stateMsg.getLeafSet() != null)
+				leafSetBackups.put(key, stateMsg.getLeafSet());
+			
+			// Update dataSets backup
+			if (stateMsg.getDataSet() != null)
+				dataSetBackups.put(key, stateMsg.getDataSet());
 		}
+		
+		log.debug(timers);
+		log.debug(leafSetBackups);
+		log.debug(dataSetBackups);
 	}
 	
 	
@@ -538,53 +562,123 @@ public class Node extends ReceiverAdapter{
 	}
 	
 	public void deadNode (int deadNodeKey){
-		log.info("Dead Node: " + deadNodeKey);
+		log.info("Timeout for node " + deadNodeKey);
+		
+		// If I'm the closest node, send Bye messages to notify other nodes.
+		if (leafSetBackups.get(deadNodeKey).closestLeafToNodeLeaf() != null
+				&& leafSetBackups.get(deadNodeKey).closestLeafToNodeLeaf().getKey() == ownLeaf.getKey()) {
+			log.info("Clossing cluster connection with this node.");
+			for (int i = 0; i <leafSetBackups.get(deadNodeKey).getLeafSet().length; i++)
+				if (leafSetBackups.get(deadNodeKey).getLeafSet()[i] != null)
+					bye(leafSetBackups.get(deadNodeKey).getLeafSet()[i].getAddress(), 
+							leafSetBackups.get(deadNodeKey), dataSetBackups.get(deadNodeKey));
+		}
 	}
 	
+	
+	// This function removes the timers that don't belong to my closest 
+	// nodes now (due to leafSets updates) and creates new timers for the new
+	// closest nodes
 	private void updateTimers (){
 			
-			// Auxiliary timers structure
-			HashMap <Integer, Timer> t = new HashMap <Integer, Timer>();
-			// Copy timers
-			for (Integer i: timers.keySet()){
-				t.put(i, null);
-			}
-			
-			Set <Integer> keySet = t.keySet();
-			
-			// Delete my own key from the keySet
-			keySet.remove(ownLeaf.getKey());
-			
-			// Delete my closest nodes from the keySet if they are present
-			if (leafSet.getLeafSet()[Common.L - 1] != null)
-				keySet.remove(leafSet.getLeafSet()[Common.L - 1].getKey());
-			if (leafSet.getLeafSet()[Common.L] != null)
-				keySet.remove(leafSet.getLeafSet()[Common.L].getKey());
-			
-			Iterator it = keySet.iterator();
-			
-			// Delete timers that don't matter now
-			while (it.hasNext()){
-				int k = (int) it.next();
-				timers.get(k).cancel();
-				timers.get(k).purge();
-				timers.remove(k);
-			}
-			
-			// Put timers for new closests nodes
-			if (leafSet.getLeafSet()[Common.L - 1] != null &&
+		// Auxiliary timers structure
+		HashMap <Integer, Timer> t = new HashMap <Integer, Timer>();
+		// Copy timers
+		for (Integer i: timers.keySet()){
+			t.put(i, null);
+		}
+
+		Set <Integer> keySet = t.keySet();
+
+		// Delete my own key from the keySet
+		keySet.remove(ownLeaf.getKey());
+
+		// Delete my closest nodes from the keySet if they are present
+		if (leafSet.getLeafSet()[Common.L - 1] != null)
+			keySet.remove(leafSet.getLeafSet()[Common.L - 1].getKey());
+		if (leafSet.getLeafSet()[Common.L] != null)
+			keySet.remove(leafSet.getLeafSet()[Common.L].getKey());
+
+		Iterator it = keySet.iterator();
+
+		// Delete timers that don't matter now
+		while (it.hasNext()){
+			int k = (int) it.next();
+			timers.get(k).cancel();
+			timers.get(k).purge();
+			timers.remove(k);
+		}
+
+		// Put timers for new closests nodes
+		if (leafSet.getLeafSet()[Common.L - 1] != null &&
 				timers.putIfAbsent(leafSet.getLeafSet()[Common.L - 1].getKey(), new Timer()) == null) {
-				
-				timers.get(leafSet.getLeafSet()[Common.L - 1].getKey()).schedule(new NeighborsTimerTask (this, 
-						leafSet.getLeafSet()[Common.L - 1].getKey()), Common.NEIGHBOR_PERIOD);
-			}
-			if (leafSet.getLeafSet()[Common.L] != null &&
+
+			timers.get(leafSet.getLeafSet()[Common.L - 1].getKey()).schedule(new NeighborsTimerTask (this, 
+					leafSet.getLeafSet()[Common.L - 1].getKey()), Common.NEIGHBOR_PERIOD);
+		}
+		if (leafSet.getLeafSet()[Common.L] != null &&
 				timers.putIfAbsent(leafSet.getLeafSet()[Common.L].getKey(), new Timer()) == null) {
-				timers.get(leafSet.getLeafSet()[Common.L].getKey()).schedule(new NeighborsTimerTask (this, 
-						leafSet.getLeafSet()[Common.L].getKey()), Common.NEIGHBOR_PERIOD);
-			}
-			
+			timers.get(leafSet.getLeafSet()[Common.L].getKey()).schedule(new NeighborsTimerTask (this, 
+					leafSet.getLeafSet()[Common.L].getKey()), Common.NEIGHBOR_PERIOD);
+		}
+
 		log.info("Timers: " + timers);
+	}
+
+	// This function removes the leafSet backups that don't belong to my closest 
+	// nodes now (due to leafSets updates).
+	private void updateLeafSetBackups (){
+
+		// Auxiliary leafSetsBackup structure
+		HashMap <Integer, LeafSet> l = new HashMap <Integer, LeafSet>();
+		// Copy leafSets keys
+		for (Integer i: leafSetBackups.keySet()){
+			l.put(i, null);
+		}
+
+		Set <Integer> keySet = l.keySet();
+
+		// Delete my closest nodes from the keySet if they are present
+		if (leafSet.getLeafSet()[Common.L - 1] != null)
+			keySet.remove(leafSet.getLeafSet()[Common.L - 1].getKey());
+		if (leafSet.getLeafSet()[Common.L] != null)
+			keySet.remove(leafSet.getLeafSet()[Common.L].getKey());
+
+		Iterator it = keySet.iterator();
+
+		// Delete leafSets that don't matter now
+		while (it.hasNext()){
+			int k = (int) it.next();
+			leafSetBackups.remove(k);
+		}
+	}
+	
+	// This function removes the dataSet backups that don't belong to my closest 
+	// nodes now (due to leafSets updates).
+	private void updateDataSetBackups (){
+
+		// Auxiliary DataSetsBackup structure
+		HashMap <Integer, DataSet> d = new HashMap <Integer, DataSet>();
+		// Copy dataSets keys
+		for (Integer i: dataSetBackups.keySet()){
+			d.put(i, null);
+		}
+
+		Set <Integer> keySet = d.keySet();
+
+		// Delete my closest nodes from the keySet if they are present
+		if (leafSet.getLeafSet()[Common.L - 1] != null)
+			keySet.remove(leafSet.getLeafSet()[Common.L - 1].getKey());
+		if (leafSet.getLeafSet()[Common.L] != null)
+			keySet.remove(leafSet.getLeafSet()[Common.L].getKey());
+
+		Iterator it = keySet.iterator();
+
+		// Delete dataSets that don't matter now
+		while (it.hasNext()){
+			int k = (int) it.next();
+			dataSetBackups.remove(k);
+		}
 	}
 	
 	public void shutdown (){
